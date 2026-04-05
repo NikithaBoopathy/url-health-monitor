@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: monitor
-        image: nikithaboopathy/url-health-monitor:latest
+        image: nikithaboopathy/url-health-monitor:b6ae37cb2928021bc7cb4862d401298ebf55bbaa
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 5000
