@@ -41,19 +41,15 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Update deployment image
         run: |
           sed -i "s|url-health-monitor:latest|url-health-monitor:${{ github.sha }}|g" k8s/deployment.yaml
       - name: Commit updated deployment
         run: |
           git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
+          git config user.email "actions@github.com"
           git add k8s/deployment.yaml
-          git commit -m "ci: update image to ${{ github.sha }}" || echo "No changes to commit"
+          git commit -m "ci: update image to ${{ github.sha }}" || echo "No changes"
           git push
