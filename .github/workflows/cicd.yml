@@ -1,0 +1,53 @@
+name: URL Health Monitor CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install -r app/requirements.txt
+      - name: Run tests
+        run: cd app && pytest tests/ -v
+
+  build-and-push:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Build and push
+        run: |
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/url-health-monitor:${{ github.sha }} ./app
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/url-health-monitor:latest ./app
+          docker push ${{ secrets.DOCKER_USERNAME }}/url-health-monitor:${{ github.sha }}
+          docker push ${{ secrets.DOCKER_USERNAME }}/url-health-monitor:latest
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update deployment image
+        run: |
+          sed -i "s|url-health-monitor:latest|url-health-monitor:${{ github.sha }}|g" k8s/deployment.yaml
+      - name: Commit updated deployment
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add k8s/deployment.yaml
+          git commit -m "ci: update image to ${{ github.sha }}" || echo "No changes"
+          git push
